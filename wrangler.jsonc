@@ -3,7 +3,9 @@
   "name": "self-notification-push",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-28",
-  "observability": { "enabled": true },
+  "observability": {
+    "enabled": true,
+  },
   "vars": {
     "APNS_TOPIC": "me.fin.bark",
     "APNS_HOST": "https://api.push.apple.com",
@@ -11,14 +13,19 @@
     "ALLOW_NEW_DEVICE": "true",
     "ALLOW_QUERY_NUMS": "true",
     "FILTERBOX_DEFAULT_CHANNEL": "bark",
-    "APP_VERSION": "1.0.0"
+    "APP_VERSION": "1.0.0",
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "self-notification-push-db",
       "database_id": "self-notification-push-db",
-      "migrations_dir": "migrations"
-    }
-  ]
+      "migrations_dir": "migrations",
+    },
+    {
+      "binding": "self_notification_push_db",
+      "database_name": "self-notification-push-db",
+      "database_id": "911711e3-2023-4b3b-a0e3-3398057085ad",
+    },
+  ],
 }
