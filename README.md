@@ -98,10 +98,13 @@ curl -X POST 'https://你的域名/bark/push' \
 点击页面顶部的 Deploy to Cloudflare：
 
 1. Cloudflare 会复制仓库、创建 Worker 和 D1 数据库，并建立 Workers Builds Git 集成。
-2. 首次部署执行 D1 migration 并发布 Worker。
-3. 此后向生产分支 push 会自动构建和部署；Pull Request 会获得预览构建。
+2. 部署页面只要求填写 `BACKDOOR_API_KEY`；可通过 `openssl rand -hex 32` 生成。
+3. 首次部署执行 D1 migration 并发布 Worker。
+4. 此后向生产分支 push 会自动构建和部署；Pull Request 会获得预览构建。
 
 与 `bark-server` 和 `bark-worker` 一样，本项目内置官方 Bark App 自托管服务所使用的公开 provider 配置，因此接入官方 Bark App 不需要额外 APNs Secret。该配置来源和授权说明见 [NOTICE](NOTICE)。
+
+Deploy Button 会把 `.dev.vars.example` 中出现的变量作为部署 Secret 展示，因此该文件只声明后门管理所需的 `BACKDOOR_API_KEY`。APNs 自定义凭据、Basic Auth 和默认 FilterBox 目标都是可选配置，不在首次部署页面中强制填写。
 
 只有为兼容的自定义 App/topic 部署时，才需要同时覆盖：
 
@@ -149,6 +152,17 @@ pnpm dev
 ```
 
 本地服务默认为 `http://localhost:8787`，Bark API 根地址为 `http://localhost:8787/bark`。`.dev.vars` 已加入 `.gitignore`，不要提交真实密钥。
+
+`.dev.vars.example` 同时也是 Deploy Button 的 Secret 声明文件，所以不会列出可选 Secret。本地确实需要可选配置时，直接追加到 `.dev.vars`，例如：
+
+```dotenv
+BASIC_AUTH="user:password"
+FILTERBOX_BARK_DEVICE_KEYS="你的Bark设备Key"
+# 只有自定义 App/topic 才同时填写以下三项
+APNS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----..."
+APNS_KEY_ID="你的Apple Key ID"
+APNS_TEAM_ID="你的Apple Team ID"
+```
 
 ## 配置
 

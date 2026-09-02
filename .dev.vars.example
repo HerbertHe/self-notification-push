@@ -1,10 +1,4 @@
-# Official Bark App works without APNs overrides. Set all three only for a
-# compatible custom app/topic.
-APNS_PRIVATE_KEY=""
-APNS_KEY_ID=""
-APNS_TEAM_ID=""
-BASIC_AUTH=""
-BASIC_AUTH_USER=""
-BASIC_AUTH_PASSWORD=""
-FILTERBOX_BARK_DEVICE_KEYS=""
+# Deploy to Cloudflare reads this file as the template's secret declaration.
+# Keep optional APNs, Basic Auth and FilterBox destination secrets out of this
+# file; configure them after deployment only when needed.
 BACKDOOR_API_KEY="replace-with-a-random-admin-key"

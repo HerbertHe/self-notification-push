@@ -26,6 +26,11 @@
     "categories": [],
     "icon_urls": [],
     "docs_url": "https://developers.cloudflare.com/workers/",
+    "bindings": {
+      "BACKDOOR_API_KEY": {
+        "description": "High-entropy admin secret for managing source whitelist keys. Generate with: openssl rand -hex 32"
+      }
+    },
     "dash": true
   },
   "engines": {
