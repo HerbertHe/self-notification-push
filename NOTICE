@@ -1,0 +1,9 @@
+This project is an independent Hono/Cloudflare implementation of the Bark
+server protocol.
+
+The default APNs provider configuration used to communicate with the official
+Bark iOS application is taken from Finb/bark-server, licensed under the MIT
+License: https://github.com/Finb/bark-server
+
+Cloudflare behavior and compatibility were checked against cwxiaos/bark-worker:
+https://github.com/cwxiaos/bark-worker
