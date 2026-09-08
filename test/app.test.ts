@@ -40,6 +40,17 @@ class FakeD1 {
             meta: {},
           }
         }
+        if (sql.includes("WHERE device_token <> ''") && sql.includes('GROUP BY device_token')) {
+          const keysByToken = new Map<string, string>()
+          for (const [deviceKey, deviceToken] of this.devices) {
+            if (deviceToken && !keysByToken.has(deviceToken)) keysByToken.set(deviceToken, deviceKey)
+          }
+          return {
+            results: [...keysByToken.values()].map((device_key) => ({ device_key })) as T[],
+            success: true,
+            meta: {},
+          }
+        }
         return {
           results: [...this.devices.entries()]
             .filter(([key]) => args.map(String).includes(key))
@@ -125,7 +136,6 @@ describe('Bark Worker routes', () => {
       MAX_BATCH_PUSH_COUNT: '10',
       APP_VERSION: 'test',
       FILTERBOX_DEFAULT_CHANNEL: 'bark',
-      FILTERBOX_BARK_DEVICE_KEYS: 'fbdefault',
       BACKDOOR_API_KEY: 'admin-secret',
     }
     database.sourceKeys.set('filterbox-source-key-123', {
@@ -378,6 +388,27 @@ describe('Bark Worker routes', () => {
       { code: 200, device_key: 'one' },
       { code: 200, device_key: 'two' },
     ])
+  })
+
+  it('pushes FilterBox notifications to every active device when no target is specified', async () => {
+    database.devices.set('first', 'token-first')
+    database.devices.set('second', 'token-second')
+    database.devices.set('old-key-for-first', 'token-first')
+    database.devices.set('invalid', '')
+
+    const response = await app.request('/filterbox/webhook', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer filterbox-source-key-123',
+      },
+      body: JSON.stringify({ title: 'All devices', body: 'broadcast' }),
+    }, env)
+
+    expect(response.status).toBe(200)
+    const body = await response.json<{ data: { total: number; succeeded: number; failed: number } }>()
+    expect(body.data).toEqual({ total: 2, succeeded: 2, failed: 0 })
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2)
   })
 
   it('protects FilterBox webhook and rejects unknown channels', async () => {

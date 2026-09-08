@@ -201,13 +201,9 @@ function extractBarkParams(input: Record<string, unknown>) {
 
 `bark_device_keys` 非空时优先于 `bark_device_key`，与 Bark 批量推送规则一致。
 
-如果请求没有提供设备参数，则读取环境变量：
+如果请求没有提供设备参数，则查询 D1 `devices` 表，并向所有 `device_token` 非空的已注册 Bark 设备批量推送。不需要默认设备环境变量；相同 APNs device token 只发送一次。没有任何有效注册设备时返回 400 `no registered Bark devices`。
 
-```text
-FILTERBOX_BARK_DEVICE_KEYS
-```
-
-格式为逗号分隔的 Bark device key。请求参数优先于环境变量。请求和环境变量都没有设备 key 时返回 400，因为设备目标不存在可用的 Bark 默认值。
+隐式广播响应只包含 `total`、`succeeded`、`failed` 统计，不把 D1 中的 Bark device key 暴露给数据来源。显式指定 `bark_device_keys` 时继续返回 Bark 的逐设备批量结果。
 
 ### 内容参数
 
@@ -307,8 +303,8 @@ Bark device keys：
 ```text
 bark_device_keys
   > bark_device_key
-  > FILTERBOX_BARK_DEVICE_KEYS
-  > 返回 400
+  > D1 中全部有效 Bark 设备
+  > 没有有效设备时返回 400
 ```
 
 其他 Bark 参数：
@@ -414,7 +410,7 @@ Authorization: Bearer <来源key>
 - 来源 key 存在 `source_keys` 表中，只鉴权 `/filterbox/webhook` 等数据来源入口。
 - Bark device key 由 Bark App 的 `/bark/register` 产生，只定位推送设备。
 
-来源 key 不参与 Bark 注册，也不能代替 `bark_device_key(s)`。Bark 路由不会读取 `source_keys` 表。
+来源 key 不参与 Bark 注册。Bark 路由不会读取 `source_keys` 表；只有 FilterBox 在未指定目标时读取全部有效 Bark 设备。
 
 要求：
 
@@ -455,10 +451,9 @@ CREATE TABLE source_keys (
 
 ```bash
 pnpm exec wrangler secret put BACKDOOR_API_KEY
-pnpm exec wrangler secret put FILTERBOX_BARK_DEVICE_KEYS
 ```
 
-如果每条 FilterBox 规则都显式传 `bark_device_key`，可以不配置 `FILTERBOX_BARK_DEVICE_KEYS`。
+FilterBox 不需要默认设备 Secret。显式传 `bark_device_key(s)` 时定向推送，否则广播给全部有效 Bark 设备。
 
 现有 Deploy to Cloudflare、D1 migration 和自动部署流程保持不变。
 
@@ -507,7 +502,7 @@ app.route('/filterbox', filterBoxApp)
 - `bark_title/body` 覆盖通用 title/body。
 - 未传可选参数时使用 Bark 默认值。
 - `bark_device_keys` 优先于 `bark_device_key`。
-- 请求设备 key 优先于环境变量。
+- 请求设备 key 优先；未指定时查询全部有效 Bark 设备。
 - 单设备和批量结果。
 
 ### 安全与回归
@@ -522,10 +517,10 @@ app.route('/filterbox', filterBoxApp)
 ### 真实验收
 
 1. Bark App 已通过 `/bark` 注册。
-2. 将 Bark App 取得的设备 key 配置为 `FILTERBOX_BARK_DEVICE_KEYS`。
-3. 配置 `BACKDOOR_API_KEY`，通过 `/backdoor/keys` 创建备注为 FilterBox 的来源 key。
-4. 在 FilterBox 中创建 `channel=bark` 的 POST JSON Webhook，并把来源 key 放入 Bearer header。
-5. 普通 Android 通知成功到达 Bark。
+2. 配置 `BACKDOOR_API_KEY`，通过 `/backdoor/keys` 创建备注为 FilterBox 的来源 key。
+3. 在 FilterBox 中创建 `channel=bark` 的 POST JSON Webhook，并把来源 key 放入 Bearer header。
+4. 不传设备参数，验证普通 Android 通知到达全部有效 Bark 设备。
+5. 显式传 `bark_device_key(s)`，验证只向指定设备推送。
 6. 验证 title、body、中文、emoji 和换行。
 7. 逐项验证 sound、group、level、badge、call、copy、icon、image、archive、ttl、url、markdown。
 8. 验证多 device key 批量发送，并验证删除来源 key 后请求返回 401。

@@ -8,6 +8,19 @@ export class DeviceRepository {
     return Number(row?.count ?? 0)
   }
 
+  async listActiveKeys(): Promise<string[]> {
+    const result = await this.db
+      .prepare(
+        `SELECT MIN(device_key) AS device_key
+         FROM devices
+         WHERE device_token <> ''
+         GROUP BY device_token
+         ORDER BY MIN(created_at) ASC`,
+      )
+      .all<{ device_key: string }>()
+    return result.results.map((row) => row.device_key)
+  }
+
   async findToken(deviceKey: string): Promise<string> {
     const normalizedKey = normalizeLookupKey(deviceKey)
     const row = await this.db

@@ -14,7 +14,7 @@
 | 数据来源 key | D1 `source_keys` | 调用 `/filterbox/webhook` | 后门 CRUD |
 | Bark 设备 key | D1 `devices` | 定位 Bark/APNs 设备 | Bark App `/bark/register` |
 
-任何一类 key 都不会隐式获得另一类权限。`/bark/register` 只读写 `devices`；`/filterbox/webhook` 只用来源 key 做入口鉴权，发送目标仍来自 `bark_device_key(s)` 或 `FILTERBOX_BARK_DEVICE_KEYS`。
+任何一类 key 都不会隐式获得另一类权限。`/bark/register` 只读写 `devices`；`/filterbox/webhook` 只用来源 key 做入口鉴权。请求显式提供 `bark_device_key(s)` 时只发送到指定设备，未提供时发送到 `devices` 表中的全部有效设备。
 
 ## 3. 后门鉴权
 

@@ -157,7 +157,6 @@ pnpm dev
 
 ```dotenv
 BASIC_AUTH="user:password"
-FILTERBOX_BARK_DEVICE_KEYS="你的Bark设备Key"
 # 只有自定义 App/topic 才同时填写以下三项
 APNS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----..."
 APNS_KEY_ID="你的Apple Key ID"
@@ -198,11 +197,10 @@ curl -u 'user:password' 'https://你的域名/bark/DEVICE_KEY/受保护的通知
 
 ## FilterBox Webhook
 
-FilterBox 的所有接口使用 `/filterbox` 前缀。Webhook 不使用 Bark 设备 key 鉴权，而是要求一个独立的数据来源 key。先配置后门管理密钥和默认 Bark device key：
+FilterBox 的所有接口使用 `/filterbox` 前缀。Webhook 不使用 Bark 设备 key 鉴权，而是要求一个独立的数据来源 key。先配置后门管理密钥：
 
 ```bash
 pnpm exec wrangler secret put BACKDOOR_API_KEY
-pnpm exec wrangler secret put FILTERBOX_BARK_DEVICE_KEYS
 ```
 
 `BACKDOOR_API_KEY` 未配置时，所有 `/backdoor/*` 请求均返回 404，不能创建或查询来源 key。配置后，为 FilterBox 创建一个来源 key：
@@ -214,7 +212,7 @@ curl -X POST 'https://你的域名/backdoor/keys' \
   -d '{"remark":"FilterBox"}'
 ```
 
-响应中的 `data.key` 是 FilterBox 专用的来源 key。`FILTERBOX_BARK_DEVICE_KEYS` 支持一个 Bark 设备 key 或逗号分隔的多个 Bark 设备 key。FilterBox 推荐配置：
+响应中的 `data.key` 是 FilterBox 专用的来源 key。FilterBox 推荐配置：
 
 ```text
 Method: POST
@@ -249,7 +247,9 @@ bark_ciphertext / bark_iv
 bark_isArchive / bark_ttl / bark_id / bark_delete
 ```
 
-请求中的 `bark_device_key(s)` 优先于环境变量。未提供 `bark_title` 和 `bark_body` 时分别使用通用 `title` 和 `body/text/message`；其他未提供的参数使用 Bark 自身默认值。未知的 `bark_*` 参数也会移除前缀后透传。
+请求提供 `bark_device_key(s)` 时只推送到指定设备；未提供时自动查询 D1 并推送给所有 device token 非空的已注册 Bark 设备，不需要额外环境变量。相同 APNs device token 只推送一次，避免历史 key 导致重复通知。未提供 `bark_title` 和 `bark_body` 时分别使用通用 `title` 和 `body/text/message`；其他未提供的参数使用 Bark 自身默认值。未知的 `bark_*` 参数也会移除前缀后透传。
+
+隐式全设备推送只返回 `{ total, succeeded, failed }` 统计，不向数据来源暴露数据库中的 Bark device key。显式传入 `bark_device_keys` 时仍返回逐设备结果。
 
 三类 key 不可混用：
 
@@ -257,7 +257,7 @@ bark_isArchive / bark_ttl / bark_id / bark_delete
 - 来源 key：由后门 CRUD 存入 D1 白名单，只允许通知滤盒等来源调用 `/filterbox/webhook`。
 - Bark 设备 key：由 Bark App 通过 `/bark/register` 注册，只用于定位 APNs 设备。
 
-来源 key 不会注册 Bark 设备、不能替代 `bark_device_key`，Bark 的注册协议也不会读取来源白名单。删除来源 key 后对应 Webhook 权限立即失效。
+来源 key 不会注册 Bark 设备，Bark 的注册协议也不会读取来源白名单。FilterBox 未指定 `bark_device_key(s)` 时广播给全部有效的已注册 Bark 设备；删除来源 key 后对应 Webhook 权限立即失效。
 
 后门 CRUD 示例：
 

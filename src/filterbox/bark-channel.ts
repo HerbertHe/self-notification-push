@@ -3,6 +3,7 @@ import { maxBatchCount } from '../env'
 import { parseDeviceKeys } from '../bark/parser'
 import { PushService } from '../bark/push-service'
 import { BarkError } from '../bark/response'
+import { DeviceRepository } from '../repositories/device-repository'
 import type { ChannelResult, NotificationChannel } from './channel'
 import { genericBody, genericTitle } from './parser'
 
@@ -19,13 +20,11 @@ export class BarkChannel implements NotificationChannel {
     const requestHasBatch = Object.hasOwn(params, 'device_keys')
     let deviceKeys = requestHasBatch ? parseDeviceKeys(params) : []
     const requestDeviceKey = stringValue(params.device_key)
+    const implicitBroadcast = deviceKeys.length === 0 && !requestDeviceKey
 
-    if (deviceKeys.length === 0 && !requestDeviceKey) {
-      deviceKeys = parseConfiguredKeys(this.env.FILTERBOX_BARK_DEVICE_KEYS)
-      if (deviceKeys.length === 1) {
-        params.device_key = deviceKeys[0]
-        deviceKeys = []
-      }
+    if (implicitBroadcast) {
+      deviceKeys = await new DeviceRepository(this.env.DB).listActiveKeys()
+      if (deviceKeys.length === 0) throw new BarkError(400, 'no registered Bark devices')
     }
 
     if (deviceKeys.length > 0) {
@@ -33,7 +32,12 @@ export class BarkChannel implements NotificationChannel {
       if (max !== -1 && deviceKeys.length > max) {
         throw new BarkError(400, `batch push count exceeds the maximum limit: ${max}`)
       }
-      return { data: await new PushService(this.env).pushBatch(deviceKeys, params) }
+      const results = await new PushService(this.env).pushBatch(deviceKeys, params)
+      if (implicitBroadcast) {
+        const succeeded = results.filter((result) => result.code === 200).length
+        return { data: { total: results.length, succeeded, failed: results.length - succeeded } }
+      }
+      return { data: results }
     }
 
     if (!stringValue(params.device_key)) throw new BarkError(400, 'device key is empty')
@@ -49,11 +53,6 @@ export function extractBarkParams(input: Record<string, unknown>): Record<string
     if (normalized.startsWith('bark_')) params[normalized.slice(5)] = value
   }
   return params
-}
-
-function parseConfiguredKeys(value: string | undefined): string[] {
-  if (!value) return []
-  return value.split(',').map((key) => key.trim()).filter(Boolean)
 }
 
 function stringValue(value: unknown): string {

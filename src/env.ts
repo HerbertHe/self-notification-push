@@ -15,7 +15,6 @@ export type Bindings = {
   BUILD_DATE?: string
   COMMIT_SHA?: string
   FILTERBOX_DEFAULT_CHANNEL?: string
-  FILTERBOX_BARK_DEVICE_KEYS?: string
   BACKDOOR_API_KEY?: string
 }
 
