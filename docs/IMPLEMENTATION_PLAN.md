@@ -159,6 +159,8 @@ interface DeviceRepository {
 ## 6. Basic Auth 与安全策略
 
 - `BASIC_AUTH_USER` 和 `BASIC_AUTH_PASSWORD` 均为空时关闭鉴权；任一配置后启用。
+- `ALLOW_NEW_DEVICE` 由 Cloudflare Dashboard 的 Variables and Secrets 管理，不写入仓库 `vars`；缺省时为 `true`，设为 `false` 时只阻止未知设备注册，不影响已有 device key 更新 token。
+- Wrangler 启用 `keep_vars: true`，部署时保留 Dashboard 管理的 `ALLOW_NEW_DEVICE`；不得在本地 `vars` 重复声明该变量。
 - 免鉴权范围与上游一致：`/bark/ping`、`/bark/healthz`、`/bark/register` 及注册检查子路径。
 - 解析 `Authorization: Basic ...`，使用恒定时间比较；失败响应 401 并带 `WWW-Authenticate: Basic realm="Coffee Time"`。
 - 日志绝不记录 Authorization、APNs 私钥、device token、完整 device key 或完整请求体。

@@ -172,9 +172,27 @@ APNS_TEAM_ID="你的Apple Team ID"
 | `APNS_TOPIC` | `me.fin.bark` | APNs topic |
 | `APNS_HOST` | `https://api.push.apple.com` | APNs production host |
 | `MAX_BATCH_PUSH_COUNT` | `-1` | 单次批推上限，`-1` 与 bark-server 默认值一致 |
-| `ALLOW_NEW_DEVICE` | `true` | 是否允许 Bark App 注册新设备 |
 | `ALLOW_QUERY_NUMS` | `true` | `/bark/info` 是否统计设备数 |
 | `APP_VERSION` | `1.0.0` | `/bark/info` 和 MCP 版本 |
+
+`ALLOW_NEW_DEVICE` 不写入 `wrangler.jsonc`，由 Cloudflare 后台管理：
+
+```text
+Workers & Pages
+→ self-notification-push
+→ Settings
+→ Variables and Secrets
+→ Add variable
+→ ALLOW_NEW_DEVICE
+```
+
+变量使用纯文本值：
+
+- `true`：允许 Bark App 注册新设备。
+- `false`：禁止未知设备注册；已经存在的 Bark device key 仍可更新 device token。
+- 未配置：代码默认按 `true` 处理。
+
+`wrangler.jsonc` 已启用 `keep_vars: true`，因此后续 `pnpm deploy` 或 Git 自动部署会保留后台配置的 `ALLOW_NEW_DEVICE`。不要再把同名变量加入本地 `vars`，否则本地值会重新成为部署配置源。其他仍列在 `vars` 中的固定变量继续由 Git 管理。
 
 兼容 bark-worker 的鉴权方式：
 
