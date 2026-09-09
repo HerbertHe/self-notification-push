@@ -239,6 +239,21 @@ Header: Authorization: Bearer <刚创建的来源key>
 Header: Content-Type: application/json
 ```
 
+如果通知滤盒不方便设置 `Authorization` Header，也可以仅在 POST JSON Body 中传来源 key：
+
+```json
+{
+  "x_snp_authorization": "刚创建的来源key",
+  "title": "{android.title}",
+  "body": "{android.text}",
+  "bark_group": "filterbox"
+}
+```
+
+两种鉴权方式按顺序读取：`Authorization` Header 优先级最高；只有请求完全未携带该 Header 时，才读取 `x_snp_authorization`。如果 Header 存在但格式错误或来源 key 无效，直接返回 401，不回退到 JSON Body。`x_snp_authorization` 只接受 `Content-Type: application/json` 的 POST Body，不接受 query、GET 或 form，鉴权后会立即删除，不会进入 Bark/APNs payload。
+
+`x_snp_authorization` 的值仍是 `/backdoor/keys` 创建并存储在 `source_keys` 表中的来源 key。它只控制数据来源能否调用接口，与 Bark 注册、Bark device key、推送目标及 APNs 凭据均无关系。
+
 Body：
 
 ```json

@@ -99,6 +99,16 @@ Content-Type: application/json
 Authorization: Bearer 你的来源Key
 ```
 
+Header 不便配置时，可在 POST JSON Body 中增加：
+
+```json
+{
+  "x_snp_authorization": "你的来源Key"
+}
+```
+
+Header 优先级最高；仅在请求完全没有 `Authorization` Header 时读取 Body。Header 存在但格式错误或 key 无效时返回 401，不回退到 Body。Body 方式不支持 GET、query 或 form，字段鉴权后删除，不参与渠道参数映射。
+
 Body：
 
 ```json
@@ -392,7 +402,7 @@ channels.telegram = new TelegramChannel(...)
 
 - 缺少、不存在或已撤销的来源 key：401。
 - 不支持的 channel：400。
-- 缺少 Bark device key：400。
+- 未显式指定目标且 D1 中没有有效 Bark 设备：400。
 - title/body 均为空不是错误，交给 Bark 使用 `Empty Message`。
 - Bark/APNs 错误：保留 Bark 核心的状态与响应信息。
 
@@ -403,6 +413,8 @@ FilterBox Webhook 使用 D1 中的数据来源 key 白名单，不使用固定�
 ```text
 Authorization: Bearer <来源key>
 ```
+
+未携带 `Authorization` Header 时，也可从 POST JSON Body 的 `x_snp_authorization` 读取。两种方式都查询同一张来源 key 白名单，不创建新的密钥类型。Header 存在时无论是否有效都不回退到 Body。该字段仅用于入口鉴权，与 Bark 注册、Bark device key、推送目标和 APNs 凭据无关。
 
 三类密钥严格隔离：
 
@@ -479,7 +491,7 @@ app.route('/filterbox', filterBoxApp)
 
 - `app.ts`：路由和统一错误处理。
 - `parser.ts`：GET/POST/JSON/form 解析与字段别名。
-- `auth.ts`：Bearer 来源 key 白名单校验。
+- `auth.ts`：Header Bearer 或 POST JSON `x_snp_authorization` 来源 key 白名单校验。
 - `channel.ts`：最小渠道接口和 channel 选择。
 - `bark-channel.ts`：`bark_*` 参数提取、默认值和 PushService 调用。
 
@@ -507,7 +519,9 @@ app.route('/filterbox', filterBoxApp)
 
 ### 安全与回归
 
-- 无来源 key、错误 key、正确 key、撤销后的 key。
+- Header/POST JSON 来源 key、错误 key、正确 key、撤销后的 key。
+- 错误 Header 与正确 Body 同时存在时仍返回 401，验证 Header 优先级。
+- query、GET 和 form 中的 `x_snp_authorization` 不得通过鉴权。
 - 后门密钥缺失时隐藏接口，错误时拒绝，CRUD 后立即影响白名单。
 - 来源 key 与 Bark device key 数据和协议隔离。
 - 请求体上限和日志脱敏。
@@ -518,7 +532,7 @@ app.route('/filterbox', filterBoxApp)
 
 1. Bark App 已通过 `/bark` 注册。
 2. 配置 `BACKDOOR_API_KEY`，通过 `/backdoor/keys` 创建备注为 FilterBox 的来源 key。
-3. 在 FilterBox 中创建 `channel=bark` 的 POST JSON Webhook，并把来源 key 放入 Bearer header。
+3. 在 FilterBox 中创建 `channel=bark` 的 POST JSON Webhook，并通过 Bearer header 或 `x_snp_authorization` 提供来源 key。
 4. 不传设备参数，验证普通 Android 通知到达全部有效 Bark 设备。
 5. 显式传 `bark_device_key(s)`，验证只向指定设备推送。
 6. 验证 title、body、中文、emoji 和换行。
@@ -531,7 +545,7 @@ Android 15 可能隐藏验证码等敏感通知内容。服务端无法恢复 Fi
 
 1. 增加 `/filterbox/ping` 和 `/filterbox/webhook`。
 2. 实现 GET/POST/JSON/form 解析。
-3. 实现 Bearer 来源 key 白名单校验。
+3. 实现 Bearer 与 POST JSON Body 来源 key 白名单校验。
 4. 实现最小 channel 选择器，只注册 bark。
 5. 实现所有 `bark_*` 参数的统一提取。
 6. 补充 title/body/device keys 默认值。

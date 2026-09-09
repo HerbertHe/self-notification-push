@@ -185,6 +185,8 @@ MCP session 使用 D1 保存，支持初始化、续期、一小时空闲/一天
 
 `/filterbox/webhook` 等外部数据来源入口使用独立的 `source_keys` D1 白名单。来源 key 由受 `BACKDOOR_API_KEY` 保护的 `/backdoor/keys` 接口管理，只包含 key 和备注。
 
+FilterBox 优先通过 `Authorization: Bearer <来源key>` 鉴权；只有请求不携带该 Header 时，才从 POST JSON Body 读取 `x_snp_authorization`。Header 存在但无效时不回退。Body 鉴权字段不接受 query/GET/form，并在鉴权后移除，不能进入 Bark/APNs payload。
+
 来源 key、后门管理密钥与 Bark device key 是三种独立凭据：来源 key 不能注册或定位 Bark 设备，Bark App 的 `/bark/register` 也不读取来源白名单。因此这项扩展不会改变 Bark 注册、检查和推送协议。完整设计见 [SOURCE_KEY_DESIGN.md](SOURCE_KEY_DESIGN.md)。
 
 ## 9. 推荐目录结构

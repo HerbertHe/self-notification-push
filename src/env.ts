@@ -18,7 +18,12 @@ export type Bindings = {
   BACKDOOR_API_KEY?: string
 }
 
-export type AppEnv = { Bindings: Bindings }
+export type AppEnv = {
+  Bindings: Bindings
+  Variables: {
+    filterBoxInput: Record<string, unknown>
+  }
+}
 
 export function maxBatchCount(env: Bindings): number {
   const value = Number.parseInt(env.MAX_BATCH_PUSH_COUNT ?? '-1', 10)

@@ -421,6 +421,67 @@ describe('Bark Worker routes', () => {
     expect((await unsupported.json<{ message: string }>()).message).toBe('unsupported channel: telegram')
   })
 
+  it('accepts a source key from POST JSON x_snp_authorization only', async () => {
+    database.devices.set('jsonauthdevice', 'token')
+    const response = await app.request('/filterbox/webhook', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        x_snp_authorization: 'filterbox-source-key-123',
+        title: 'JSON auth',
+        body: 'message',
+      }),
+    }, env)
+    expect(response.status).toBe(200)
+    expect(await response.json<{ data: unknown }>()).toEqual(expect.objectContaining({
+      data: { total: 1, succeeded: 1, failed: 0 },
+    }))
+    const [, init] = vi.mocked(fetch).mock.calls[0]!
+    expect(JSON.parse(String(init?.body)).x_snp_authorization).toBeUndefined()
+
+    const invalidHeaderTakesPriority = await app.request('/filterbox/webhook', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer invalid-header-key',
+      },
+      body: JSON.stringify({
+        x_snp_authorization: 'filterbox-source-key-123',
+        body: 'must not fall back to JSON auth',
+      }),
+    }, env)
+    expect(invalidHeaderTakesPriority.status).toBe(401)
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
+
+    const emptyHeaderTakesPriority = await app.request('/filterbox/webhook', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: '',
+      },
+      body: JSON.stringify({
+        x_snp_authorization: 'filterbox-source-key-123',
+        body: 'empty header must not fall back either',
+      }),
+    }, env)
+    expect(emptyHeaderTakesPriority.status).toBe(401)
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
+
+    const queryAuth = await app.request(
+      '/filterbox/webhook?x_snp_authorization=filterbox-source-key-123',
+      undefined,
+      env,
+    )
+    expect(queryAuth.status).toBe(401)
+
+    const formAuth = await app.request('/filterbox/webhook', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'x_snp_authorization=filterbox-source-key-123&body=form',
+    }, env)
+    expect(formAuth.status).toBe(401)
+  })
+
   it('manages source whitelist keys through the protected backdoor API', async () => {
     database.devices.set('fbdefault', 'token')
     expect((await app.request('/backdoor/keys', undefined, env)).status).toBe(401)

@@ -11,7 +11,7 @@ filterBoxApp.get('/ping', (c) => c.json({ code: 200, message: 'pong', timestamp:
 filterBoxApp.use('/webhook', filterBoxAuth)
 
 const webhook = async (c: Context<AppEnv>) => {
-  const input = await parseFilterBoxRequest(c)
+  const input = c.get('filterBoxInput') ?? await parseFilterBoxRequest(c)
   const channelName = String(input.channel ?? c.env.FILTERBOX_DEFAULT_CHANNEL ?? 'bark').toLowerCase()
   const result = await resolveChannel(channelName, c.env).send(input)
   return c.json(success(result.data))

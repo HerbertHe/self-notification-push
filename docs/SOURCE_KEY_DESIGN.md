@@ -52,7 +52,7 @@ curl -X POST 'https://你的域名/backdoor/keys' \
 
 ## 5. Webhook 鉴权流程
 
-`/filterbox/ping` 保持公开。`GET/POST /filterbox/webhook` 从 Bearer header 取得来源 key，并对 `source_keys.key` 做主键查询：存在则继续解析和投递，不存在则返回 401。删除或替换 key 后无需缓存失效，下一次请求立即采用 D1 中的新状态。
+`/filterbox/ping` 保持公开。`GET/POST /filterbox/webhook` 优先从 Bearer header 取得来源 key；只有请求完全不携带 `Authorization` Header 时，POST JSON 才从 Body 的 `x_snp_authorization` 取得同一种来源 key。Header 存在但格式错误或 key 无效时直接返回 401，不回退到 Body。Body 鉴权字段不接受 query、GET 或 form，并在鉴权后删除，不会传入渠道适配器。它与 Bark 注册、Bark device key、推送目标和 APNs 凭据无关。删除或替换 key 后无需缓存失效，下一次请求立即采用 D1 中的新状态。
 
 成功通过入口鉴权只代表该来源可以提交通知，并不会自动产生 Bark 设备 key。Bark 投递仍走现有 `PushService`，完整支持所有 `bark_*` 参数及 Bark 默认值。
 
@@ -75,6 +75,6 @@ CREATE TABLE IF NOT EXISTS source_keys (
 
 - 为 `BACKDOOR_API_KEY` 使用高熵随机值，并只通过 Secret 配置。
 - 为每种数据来源创建不同 key，备注写清用途，泄露时只撤销对应 key。
-- FilterBox 使用 HTTPS，并把来源 key 放在 Authorization header，不放 URL query。
-- 不记录 Authorization、来源 key、Bark 设备 key或完整通知正文。
+- FilterBox 使用 HTTPS，优先把来源 key 放在 Authorization header；无法设置 Header 时使用 POST JSON 的 `x_snp_authorization`，不得放入 URL query。
+- 不记录 Authorization、来源 key、Bark 设备 key 或完整通知正文。
 - 可在 Cloudflare 层为 `/backdoor/*` 增加 Access/WAF 作为额外防护，但不改变应用协议。
